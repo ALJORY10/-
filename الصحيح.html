@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>InsureFlow AI — Pre-authorization assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#14323D; --ink2:#4A6470; --paper:#F6F8F9; --white:#fff; --line:#D5DDE1;
+    --teal:#0F7C74; --teal-soft:#E3F2F0; --amber:#B7791F; --amber-soft:#FBF1DF;
+    --red:#B83A36; --red-soft:#F8E4E3; --green:#2F7D4F; --green-soft:#E4F2E9;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 "IBM Plex Sans",system-ui,sans-serif}
+  header{background:var(--ink);color:#fff;padding:14px 24px;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+  header h1{margin:0;font-size:20px;font-weight:700;letter-spacing:-.01em}
+  header p{margin:0;color:#A9C1C9;font-size:14px}
+  main{display:grid;grid-template-columns:minmax(320px,440px) 1fr;gap:24px;padding:24px;max-width:1280px;margin:0 auto}
+  @media (max-width:900px){main{grid-template-columns:1fr;padding:16px}}
+  section.panel{background:var(--white);border:1px solid var(--line);border-radius:10px;padding:20px}
+  h2{font-size:17px;margin:0 0 4px}
+  .hint{color:var(--ink2);font-size:13px;margin:0 0 16px}
+  label{display:block;font-weight:600;font-size:13px;margin:14px 0 5px}
+  input,select,textarea{width:100%;font:inherit;color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:9px 10px;background:#fff}
+  textarea{min-height:150px;resize:vertical}
+  input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--teal);outline-offset:1px}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .samples{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:6px 12px;font:inherit;font-size:13px;cursor:pointer;color:var(--ink)}
+  .chip:hover{border-color:var(--teal)}
+  .btn{margin-top:18px;width:100%;background:var(--teal);color:#fff;border:0;border-radius:6px;padding:12px;font:inherit;font-weight:600;cursor:pointer}
+  .btn:disabled{opacity:.6;cursor:wait}
+  .btn.secondary{background:#fff;color:var(--teal);border:1px solid var(--teal);width:auto;padding:9px 14px;margin-top:0}
+  .note{font-size:12px;color:var(--ink2);margin-top:10px}
+
+  /* Result: the request "track" */
+  .empty{color:var(--ink2);text-align:center;padding:60px 20px}
+  .track{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:20px}
+  .stage{padding:10px 12px;font-size:13px;border-right:1px solid var(--line);background:var(--paper);color:var(--ink2)}
+  .stage:last-child{border-right:0}
+  .stage b{display:block;font-size:14px;color:var(--ink2)}
+  .stage.done{background:var(--teal-soft)} .stage.done b{color:var(--teal)}
+  .stage.block{background:var(--red-soft)} .stage.block b{color:var(--red)}
+  @media (max-width:600px){.track{grid-template-columns:1fr 1fr}.stage:nth-child(2){border-right:0}.stage:nth-child(-n+2){border-bottom:1px solid var(--line)}}
+
+  .verdict{display:flex;gap:20px;align-items:center;margin-bottom:22px;flex-wrap:wrap}
+  .meter{position:relative;width:112px;height:112px;flex:none}
+  .meter svg{transform:rotate(-90deg)}
+  .meter span{position:absolute;inset:0;display:grid;place-items:center;font-size:28px;font-weight:700}
+  .meter circle{transition:stroke-dashoffset .5s ease}
+  @media (prefers-reduced-motion:reduce){.meter circle{transition:none}}
+  .verdict h3{margin:0 0 4px;font-size:19px}
+  .verdict p{margin:0;color:var(--ink2)}
+  .verdict>div:last-child{flex:1;min-width:240px}
+  .pathway{display:inline-block;margin-top:8px;font-size:13px;font-weight:600;padding:4px 10px;border-radius:4px;background:var(--teal-soft);color:var(--teal)}
+
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media (max-width:700px){.cols{grid-template-columns:1fr}}
+  h4{font-size:14px;margin:0 0 8px}
+  ul.items{list-style:none;margin:0;padding:0}
+  ul.items li{border:1px solid var(--line);border-left-width:4px;border-radius:6px;padding:9px 11px;margin-bottom:8px;font-size:14px}
+  ul.items li.present{border-left-color:var(--green)}
+  ul.items li.critical{border-left-color:var(--red)}
+  ul.items li.recommended{border-left-color:var(--amber)}
+  li.resolved{opacity:.55;text-decoration:line-through}
+  li small{display:block;color:var(--ink2);font-size:12.5px;margin-top:3px;text-decoration:none}
+  li .tag{font-size:11px;font-weight:700;margin-right:6px}
+  li.critical .tag{color:var(--red)} li.recommended .tag{color:var(--amber)}
+  li label.tick{display:flex;gap:8px;align-items:flex-start;margin:0;font-weight:400;font-size:14px;cursor:pointer}
+  li label.tick input{width:auto;margin-top:4px}
+
+  .block-box{border:1px solid var(--line);border-radius:8px;padding:14px;margin-top:18px}
+  .codes{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0}
+  .code{font-weight:600;background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:3px 8px;font-size:13px}
+  ol.qs{margin:6px 0 0;padding-left:20px} ol.qs li{margin-bottom:4px}
+
+  .letter{font-family:"IBM Plex Serif",Georgia,serif;font-size:15px;line-height:1.7;white-space:pre-wrap;background:#fff;border:1px solid var(--line);border-radius:6px;padding:18px;margin-top:12px;max-width:72ch}
+  .letter-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .err{background:var(--red-soft);color:var(--red);border-radius:6px;padding:10px;margin-top:12px;font-size:14px}
+  .demo-flag{font-size:12px;background:var(--amber-soft);color:var(--amber);padding:6px 10px;border-radius:4px;margin-bottom:14px;display:inline-block}
+  .spinner{display:inline-block;width:14px;height:14px;border:2px solid #fff;border-right-color:transparent;border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px;margin-right:6px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<header>
+  <h1>InsureFlow AI</h1>
+  <p>Get pre-authorization requests right the first time</p>
+</header>
+
+<main>
+  <!-- INTAKE -->
+  <section class="panel" aria-labelledby="intake-h">
+    <h2 id="intake-h">New pre-authorization request</h2>
+    <p class="hint">Enter de-identified details only. Or load a sample case:</p>
+    <div class="samples">
+      <button class="chip" data-sample="oxygen">Home oxygen, infant</button>
+      <button class="chip" data-sample="cpap">CPAP, adult</button>
+      <button class="chip" data-sample="mri">MRI lumbar spine</button>
+    </div>
+
+    <div class="row">
+      <div><label for="age">Patient age</label><input id="age" placeholder="e.g. 8 months"></div>
+      <div><label for="sex">Sex</label>
+        <select id="sex"><option>Female</option><option>Male</option></select></div>
+    </div>
+    <div class="row">
+      <div><label for="payer">Insurer</label>
+        <select id="payer">
+          <option>Generic (CCHI unified policy)</option><option>Bupa Arabia</option>
+          <option>Tawuniya</option><option>MedGulf</option><option>Other</option>
+        </select></div>
+      <div><label for="urgency">Urgency</label>
+        <select id="urgency"><option>Elective</option><option>Urgent</option><option>Emergency</option></select></div>
+    </div>
+    <label for="dx">Diagnosis</label>
+    <input id="dx" placeholder="e.g. Bronchopulmonary dysplasia">
+    <label for="proc">Requested service / procedure</label>
+    <input id="proc" placeholder="e.g. Home oxygen concentrator + pulse oximeter">
+    <label for="notes">Clinical notes and supporting documents</label>
+    <textarea id="notes" placeholder="Paste history, exam, vitals, test results, previous treatments…"></textarea>
+
+    <button class="btn" id="analyzeBtn">Check this request</button>
+    <p class="note">Prototype for demonstration. Payer rules are simulated and results must be reviewed by a clinician.</p>
+  </section>
+
+  <!-- RESULT -->
+  <section class="panel" id="result" aria-live="polite">
+    <div class="empty">
+      <h2>No request checked yet</h2>
+      <p>Fill in the request or load a sample, then choose “Check this request”. You’ll see what’s missing before the insurer does.</p>
+    </div>
+  </section>
+</main>
+
+<script>
+const SAMPLES = {
+  oxygen:{age:"8 months",sex:"Male",payer:"Bupa Arabia",urgency:"Urgent",
+    dx:"Bronchopulmonary dysplasia (BPD)",
+    proc:"Home oxygen concentrator, portable cylinder and home pulse oximeter",
+    notes:"Ex-27 week preterm, NICU stay 94 days, ventilated 3 weeks then CPAP. Discharged on low-flow O2, weaned at 6 months. Readmitted with bronchiolitis, now recovered but unable to wean: SpO2 on room air 88-89% at rest while awake, 93-95% on 0.25 L/min nasal cannula. Mild tachypnea RR 48. CXR: chronic lung changes consistent with BPD. Plan discharge home on oxygen, pulmonology follow-up in 2 weeks."},
+  cpap:{age:"46 years",sex:"Male",payer:"Tawuniya",urgency:"Elective",
+    dx:"Suspected obstructive sleep apnea",
+    proc:"Auto-CPAP device with full face mask",
+    notes:"Loud snoring for 5 years, witnessed apneas reported by wife, daytime sleepiness, falls asleep while driving occasionally. BMI 36, neck circumference 44 cm, hypertension on amlodipine. Epworth score 16. Requesting CPAP to start treatment."},
+  mri:{age:"34 years",sex:"Female",payer:"MedGulf",urgency:"Elective",
+    dx:"Low back pain",
+    proc:"MRI lumbar spine without contrast",
+    notes:"Low back pain for 2 weeks after lifting boxes. Pain 6/10, no radiation, no numbness or weakness. No fever, no weight loss, no bladder or bowel symptoms. Exam: paraspinal tenderness, SLR negative, neuro exam normal. Taking ibuprofen."}
+};
+
+// Offline fallback so the demo never breaks on stage
+const DEMO = {
+  oxygen:{summary:"Strong clinical case for home oxygen; documentation is close but missing the formal oxygen study the insurer will ask for.",
+    pathway:{type:"Urgent review",reason:"Discharge is blocked until equipment is approved.",turnaround:"24–48 hours"},
+    present:[{item:"Qualifying diagnosis (BPD) documented",evidence:"Ex-27 week preterm… CXR consistent with BPD"},
+      {item:"Hypoxemia on room air at rest",evidence:"SpO2 88-89% on room air while awake"},
+      {item:"Response to oxygen documented",evidence:"93-95% on 0.25 L/min"},
+      {item:"Follow-up plan",evidence:"Pulmonology follow-up in 2 weeks"}],
+    missing:[{item:"Overnight / sleep oximetry report",why:"Most payers require desaturation during sleep and feeding to justify continuous home O2 in infants.",severity:"critical"},
+      {item:"Signed oxygen prescription with flow, hours/day and delivery device",why:"Equipment cannot be dispensed without an exact order.",severity:"critical"},
+      {item:"Expected duration of therapy",why:"Determines rental vs purchase coverage.",severity:"recommended"},
+      {item:"Growth / feeding status",why:"Supports medical necessity in BPD (failure to thrive with hypoxemia).",severity:"recommended"}],
+    coding:{icd10:"P27.1 Bronchopulmonary dysplasia originating in the perinatal period",cpt:"E1390 oxygen concentrator; E0431 portable gaseous O2; A4606 oximeter probe",note:"Diagnosis and requested equipment are consistent."},
+    questions:["Was an overnight oximetry done during this admission?","What flow and how many hours per day will be prescribed?","Is portable oxygen needed for travel to appointments?"]},
+  cpap:{summary:"Symptoms strongly suggest OSA, but CPAP will almost certainly be denied without a sleep study confirming the diagnosis.",
+    pathway:{type:"Standard review",reason:"Elective equipment request.",turnaround:"3–5 working days"},
+    present:[{item:"Symptoms of OSA documented",evidence:"Snoring, witnessed apneas, daytime sleepiness"},
+      {item:"Validated sleepiness score",evidence:"Epworth score 16"},
+      {item:"Risk factors documented",evidence:"BMI 36, neck 44 cm, hypertension"}],
+    missing:[{item:"Polysomnography or home sleep test with AHI",why:"Payers require a confirmed diagnosis with AHI ≥ 15, or ≥ 5 with symptoms, before approving CPAP.",severity:"critical"},
+      {item:"Confirmed diagnosis instead of 'suspected'",why:"A 'suspected' diagnosis is a common automatic rejection reason.",severity:"critical"},
+      {item:"CPAP titration or auto-CPAP pressure plan",why:"Supports device type selection.",severity:"recommended"}],
+    coding:{icd10:"G47.33 Obstructive sleep apnea (only after confirmation)",cpt:"E0601 CPAP device; request 95810 / 95806 sleep study first",note:"Consider requesting the sleep study first — it is the approvable step now."},
+    questions:["Has a sleep study been done or scheduled?","Should this request be changed to a sleep study authorization?"]},
+  mri:{summary:"Likely to be denied: uncomplicated back pain of 2 weeks with no red flags does not meet imaging criteria.",
+    pathway:{type:"Likely peer-to-peer / denial",reason:"Imaging within 6 weeks without red flags falls outside common guidelines.",turnaround:"3–5 working days"},
+    present:[{item:"Red flags screened and documented as absent",evidence:"No fever, weight loss, bladder or bowel symptoms"},
+      {item:"Normal neurological exam",evidence:"SLR negative, neuro exam normal"}],
+    missing:[{item:"≥ 6 weeks of failed conservative treatment",why:"Standard criteria for elective lumbar MRI without red flags.",severity:"critical"},
+      {item:"Physiotherapy referral or trial",why:"Payers usually expect documented physical therapy.",severity:"recommended"},
+      {item:"Progressive neurological deficit (if any)",why:"Would justify early imaging.",severity:"recommended"}],
+    coding:{icd10:"M54.50 Low back pain, unspecified",cpt:"72148 MRI lumbar spine without contrast",note:"Codes are consistent, but medical necessity is not yet met."},
+    questions:["Has the patient started physiotherapy?","Any new weakness or numbness since the visit?"]}
+};
+
+let state = null;           // current analysis
+let currentSample = null;   // sample key if loaded
+const $ = id => document.getElementById(id);
+
+document.querySelectorAll("[data-sample]").forEach(b=>b.onclick=()=>{
+  const s = SAMPLES[b.dataset.sample]; currentSample = b.dataset.sample;
+  ["age","sex","payer","urgency","dx","proc","notes"].forEach(k=>$(k).value=s[k]);
+});
+["dx","proc","notes"].forEach(k=>$(k).addEventListener("input",()=>currentSample=null));
+
+function readForm(){
+  return {age:$("age").value,sex:$("sex").value,payer:$("payer").value,urgency:$("urgency").value,
+          dx:$("dx").value.trim(),proc:$("proc").value.trim(),notes:$("notes").value.trim()};
+}
+
+async function callClaude(system, prompt){
+  const r = await fetch("https://api.anthropic.com/v1/messages",{
+    method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:1000,system,
+      messages:[{role:"user",content:prompt}]})
+  });
+  if(!r.ok) throw new Error("API "+r.status);
+  const d = await r.json();
+  return d.content.map(c=>c.type==="text"?c.text:"").join("\n");
+}
+
+const SYSTEM_ANALYZE = `You are a health insurance pre-authorization reviewer in Saudi Arabia (CCHI context).
+Review the request for medical necessity and documentation completeness the way a payer would.
+Respond ONLY with valid JSON, no markdown, no preamble, matching exactly:
+{"summary":"one sentence verdict",
+ "pathway":{"type":"Auto-approval eligible|Standard review|Urgent review|Emergency — retrospective|Likely peer-to-peer / denial","reason":"short","turnaround":"e.g. 24–48 hours"},
+ "present":[{"item":"evidence the payer needs that IS documented","evidence":"short phrase from the notes"}],
+ "missing":[{"item":"required or helpful evidence that is NOT documented","why":"why payer needs it","severity":"critical|recommended"}],
+ "coding":{"icd10":"code + short name","cpt":"code(s) + short name","note":"consistency comment"},
+ "questions":["short question for the clinician"]}
+Keep each list to at most 5 items and every string under 25 words.`;
+
+$("analyzeBtn").onclick = async ()=>{
+  const f = readForm();
+  if(!f.dx || !f.proc || !f.notes){ showError("Add a diagnosis, the requested service, and clinical notes to check the request."); return; }
+  const btn = $("analyzeBtn"); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Checking request…';
+  let demo = false;
+  try{
+    const txt = await callClaude(SYSTEM_ANALYZE,
+      `Insurer: ${f.payer}\nUrgency: ${f.urgency}\nPatient: ${f.age}, ${f.sex}\nDiagnosis: ${f.dx}\nRequested: ${f.proc}\nClinical notes:\n${f.notes}`);
+    state = JSON.parse(txt.replace(/```json|```/g,"").trim());
+  }catch(e){
+    if(currentSample){ state = structuredClone(DEMO[currentSample]); demo = true; }
+    else{ showError("The request couldn’t be checked right now ("+e.message+"). Try again, or load a sample case to see the demo."); btn.disabled=false; btn.textContent="Check this request"; return; }
+  }
+  state.missing.forEach(m=>m.resolved=false);
+  state.form = f; state.demo = demo; state.letter = null;
+  render();
+  btn.disabled = false; btn.textContent = "Check again";
+};
+
+function score(){
+  const p = state.present.length*2;
+  let total = p, got = p;
+  state.missing.forEach(m=>{ const w = m.severity==="critical"?2:1; total+=w; if(m.resolved) got+=w; });
+  return total? Math.round(100*got/total) : 0;
+}
+
+function verdict(){
+  const openCritical = state.missing.filter(m=>m.severity==="critical" && !m.resolved).length;
+  const openRec = state.missing.filter(m=>m.severity!=="critical" && !m.resolved).length;
+  if(openCritical) return {t:"Not ready to submit",c:"var(--red)",d:`${openCritical} required item${openCritical>1?"s":""} missing — the insurer will likely return or deny this request.`,ready:false};
+  if(openRec) return {t:"Ready, could be stronger",c:"var(--amber)",d:`All required evidence is in. ${openRec} optional item${openRec>1?"s":""} would strengthen it.`,ready:true};
+  return {t:"Ready to submit",c:"var(--green)",d:"All evidence the insurer expects is documented.",ready:true};
+}
+
+const esc = s => String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function render(){
+  const s = score(), v = verdict(), C = 2*Math.PI*48;
+  const letterStage = state.letter ? "done" : "";
+  $("result").innerHTML = `
+    ${state.demo?'<div class="demo-flag">Offline demo result — live AI was unavailable</div>':""}
+    <div class="track" aria-label="Request progress">
+      <div class="stage done"><b>Intake</b>Request captured</div>
+      <div class="stage ${v.ready?"done":"block"}"><b>Evidence check</b>${v.ready?"Complete":"Gaps found"}</div>
+      <div class="stage done"><b>Pathway</b>${esc(state.pathway.type)}</div>
+      <div class="stage ${letterStage}"><b>Submission</b>${state.letter?"Letter drafted":"Not drafted"}</div>
+    </div>
+
+    <div class="verdict">
+      <div class="meter" role="img" aria-label="Readiness ${s} percent">
+        <svg width="112" height="112"><circle cx="56" cy="56" r="48" fill="none" stroke="#E6ECEE" stroke-width="10"/>
+        <circle cx="56" cy="56" r="48" fill="none" stroke="${v.c}" stroke-width="10" stroke-linecap="round"
+          stroke-dasharray="${C}" stroke-dashoffset="${C*(1-s/100)}"/></svg>
+        <span>${s}%</span>
+      </div>
+      <div>
+        <h3 style="color:${v.c}">${v.t}</h3>
+        <p>${esc(v.d)}</p>
+        <p style="margin-top:6px">${esc(state.summary)}</p>
+        <span class="pathway">${esc(state.pathway.type)} · expected ${esc(state.pathway.turnaround)}</span>
+      </div>
+    </div>
+
+    <div class="cols">
+      <div>
+        <h4>Missing evidence</h4>
+        <ul class="items">${state.missing.map((m,i)=>`
+          <li class="${m.severity==="critical"?"critical":"recommended"} ${m.resolved?"resolved":""}">
+            <label class="tick"><input type="checkbox" data-i="${i}" ${m.resolved?"checked":""}>
+              <span><span class="tag">${m.severity==="critical"?"Required":"Recommended"}</span>${esc(m.item)}
+              <small>${esc(m.why)}</small></span></label>
+          </li>`).join("")||"<li class='present'>Nothing missing</li>"}</ul>
+        <p class="note">Tick an item once you’ve added it to the file.</p>
+      </div>
+      <div>
+        <h4>Evidence found</h4>
+        <ul class="items">${state.present.map(p=>`
+          <li class="present">${esc(p.item)}<small>“${esc(p.evidence)}”</small></li>`).join("")}</ul>
+      </div>
+    </div>
+
+    <div class="block-box">
+      <h4>Coding check</h4>
+      <div class="codes"><span class="code">ICD-10: ${esc(state.coding.icd10)}</span><span class="code">Service: ${esc(state.coding.cpt)}</span></div>
+      <p class="note" style="margin:0">${esc(state.coding.note)}</p>
+    </div>
+
+    ${state.questions?.length?`<div class="block-box"><h4>Ask the treating clinician</h4>
+      <ol class="qs">${state.questions.map(q=>`<li>${esc(q)}</li>`).join("")}</ol></div>`:""}
+
+    <div class="block-box">
+      <div class="letter-actions">
+        <h4 style="margin:0;flex:1">Medical necessity letter</h4>
+        <button class="btn secondary" id="letterBtn">${state.letter?"Redraft letter":"Draft letter"}</button>
+        ${state.letter?'<button class="btn secondary" id="copyBtn">Copy letter</button>':""}
+      </div>
+      ${state.letter?`<div class="letter">${esc(state.letter)}</div>`:
+        `<p class="note">${v.ready?"Evidence is complete — draft the letter to attach to the request.":"You can draft now, but the letter will be stronger once required items are added."}</p>`}
+    </div>`;
+
+  document.querySelectorAll("input[data-i]").forEach(cb=>cb.onchange=()=>{
+    state.missing[cb.dataset.i].resolved = cb.checked; render();
+  });
+  $("letterBtn").onclick = draftLetter;
+  if($("copyBtn")) $("copyBtn").onclick = ()=>{ navigator.clipboard.writeText(state.letter); $("copyBtn").textContent="Copied"; };
+}
+
+async function draftLetter(){
+  const b = $("letterBtn"); b.disabled = true; b.innerHTML = '<span class="spinner" style="border-color:var(--teal);border-right-color:transparent"></span>Drafting…';
+  const f = state.form;
+  const evidence = state.present.map(p=>p.item).concat(state.missing.filter(m=>m.resolved).map(m=>m.item+" (added)"));
+  try{
+    state.letter = (await callClaude(
+      "You write concise medical necessity letters for health insurance pre-authorization in Saudi Arabia. Plain text only, no markdown. Under 220 words. Use placeholders like [Patient ID], [Physician name] for identifiers.",
+      `Insurer: ${f.payer}\nPatient: ${f.age}, ${f.sex}\nDiagnosis: ${f.dx} (${state.coding.icd10})\nRequested: ${f.proc} (${state.coding.cpt})\nUrgency: ${f.urgency}\nDocumented evidence: ${evidence.join("; ")}\nNotes: ${f.notes}`)).trim();
+  }catch(e){
+    state.letter = `To: ${f.payer} — Pre-authorization Department\nRe: ${f.proc}\nPatient: [Patient ID], ${f.age}, ${f.sex}\n\nI am requesting authorization for ${f.proc} for the above patient, diagnosed with ${f.dx} (${state.coding.icd10}).\n\nSupporting evidence:\n${evidence.map(e=>"• "+e).join("\n")}\n\nThis service is medically necessary to ${f.urgency==="Elective"?"manage the condition effectively":"allow safe and timely care"}. Supporting documents are attached.\n\n[Physician name], [Department]\n[Hospital] — [Contact]`;
+  }
+  render();
+}
+
+function showError(msg){
+  const r = $("result"); const old = r.querySelector(".err"); if(old) old.remove();
+  const d = document.createElement("div"); d.className="err"; d.textContent=msg; r.prepend(d);
+}
+</script>
+</body>
+</html>
